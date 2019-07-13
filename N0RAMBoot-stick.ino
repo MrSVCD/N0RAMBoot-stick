@@ -133,7 +133,7 @@ void serialEvent() {
 }
 
 void sendBlock(int xmodemblock) {
-  digitalWrite(LED_BUILTIN, datablock & 1);        //blinks the led with every other block
+  digitalWrite(LED_BUILTIN, LOW);        //blinks the led with every other block
   sum = 0;                                     //Resets the checksum
 
   Serial.write(1);                                 //Start Of Heading, the start of block byte
@@ -152,7 +152,7 @@ void sendBlock(int xmodemblock) {
 }
 
 void sendBlockCRC(int xmodemblock) {
-  digitalWrite(LED_BUILTIN, datablock & 1);        //blinks the led with every other block
+  digitalWrite(LED_BUILTIN, HIGH);        //blinks the led with every other block
   CRC = 0;                                     //Resets the checksum
 
   Serial.write(1);                                 //Start Of Heading, the start of block byte
@@ -164,7 +164,7 @@ void sendBlockCRC(int xmodemblock) {
     Serial.write(pgm_read_byte(&data[i]));                              //pgm_read_byte needs the pointer to read a byte from flash correctly. just data[i] reads from ram.
 
     //CRC Calculation
-    for (int bitselect = 7; bitselect < 0; bitselect--) {
+    for (int bitselect = 0; bitselect = 8; bitselect++) {
       if (CRC & 0x8000) {
         CRC <<= 1;
         bitWrite(CRC,0,bitRead(pgm_read_byte(&data[i]),bitselect));
