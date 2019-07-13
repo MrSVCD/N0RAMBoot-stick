@@ -95,6 +95,8 @@ void serialEvent() {
   incomingByte = Serial.read();                    //Reads a byte.
   if (incomingByte == 82) {                        //Looking for R and reset the datablock counter.
     datablock = 0;
+    useCRC = 0;
+    Serial.write("R");
 
   } else if (incomingByte == 21) {                 //Looking for the NAK control character to start the transfer or resend the last datablock.
     if (datablock == numberofblocks) {
@@ -164,15 +166,15 @@ void sendBlockCRC(int xmodemblock) {
     Serial.write(pgm_read_byte(&data[i]));                              //pgm_read_byte needs the pointer to read a byte from flash correctly. just data[i] reads from ram.
 
     //CRC Calculation
-    for (int bitselect = 0; bitselect = 8; bitselect++) {
+    for (int bitselect = 0; bitselect >= 7; bitselect++) {
       if (CRC & 0x8000) {
         CRC <<= 1;
-        bitWrite(CRC,0,bitRead(pgm_read_byte(&data[i]),bitselect));
+        bitWrite(CRC, 0, bitRead(pgm_read_byte(&data[i]), bitselect));
         CRC ^= 0x1021;
       }
       else {
         CRC <<= 1;
-        bitWrite(CRC,0,bitRead(pgm_read_byte(&data[i]),bitselect));
+        bitWrite(CRC, 0, bitRead(pgm_read_byte(&data[i]), bitselect));
       }
     }
     Serial.flush();                                                     //Flushing the serial write cache. better safe than sorry.
