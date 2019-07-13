@@ -54,7 +54,7 @@
   ------------
 
   WARNING, This is untested!
-  
+
   Hardware:
   Arduino Uno       Master System
   Or similar        Player 2 port
@@ -66,18 +66,20 @@
   GND -------------------- Pin 8
 
   +5V -------------------- Pin 5
-  
+
   I have not tested this connection diagram and if it works with or without the
   330 ohm resistors.
 */
 
 #include <avr/pgmspace.h>
 #include "data.h"     //PNG Image from N0RAMBoot
-//#include "random.h"   //Random data for speed test
+//#include "random.h"   //Random data for speed memory usage test
 
 int numberofblocks = 0;
 int datablock = 0;
 int incomingByte = 0;
+int useCRC = 0;
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(9600);
@@ -89,25 +91,38 @@ void loop() {
 
 void serialEvent() {
   incomingByte = Serial.read();                    //Reads a byte.
-  if (incomingByte == 114 || incomingByte == 82) { //Looking for R or r and reset the datablock counter.
+  if (incomingByte == 82) {                        //Looking for R and reset the datablock counter.
     datablock = 0;
 
   } else if (incomingByte == 21) {                 //Looking for the NAK control character to start the transfer or resend the last datablock.
-    sendBlock(datablock);
+    if (datablock == numberofblocks) {
+      Serial.write(4);
+    } else {
+      if (useCRC == 0) {
+        sendBlock(datablock);
+      } else {
+        sendBlockCRC(datablock);
+      }
+    }
+  } else if (incomingByte == 67) {                 //If a "C" is recived, turn on CRC mode and send the first block.
+    useCRC = 1;
+    datablock = 0;
+    sendBlockCRC(datablock);
 
-  } else if (incomingByte == 6 || incomingByte == 67) {                  //Looking for the ACK control character to transfer the next datablock or indicate the end of file/data.
+  } else if (incomingByte == 6) {                  //Looking for the ACK control character to transfer the next datablock or indicate the end of file/data.
     datablock++;                                   //Increment datablock number.
 
     if (datablock == numberofblocks) {
       Serial.write(4);                             //Sends EOF to let xmodem know that there is nothing left to recive.
 
     } else if (datablock > numberofblocks) {
-      datablock = 0;                               //Reset the datablock counter. Makes it possible to
+      datablock = 0;                               //Reset the datablock counter. Makes it possible to not need to send reset "R".
+      useCRC = 0;
 
-    } else {
-      if (incomingByte == 6){
+    } else {                                       //Send datablock.
+      if (useCRC == 0) {
         sendBlock(datablock);
-      }else{
+      } else {
         sendBlockCRC(datablock);
       }
 
@@ -140,9 +155,12 @@ void sendBlockCRC(int xmodemblock) {
   Serial.flush();                                  //Flushing the serial write cache.
   for (int i = (xmodemblock * 128); i < (xmodemblock + 1) * 128; i++) { //Loop of data transmission and CRC calculation
     Serial.write(pgm_read_byte(&data[i]));                              //pgm_read_byte needs the pointer to read a byte from flash correctly. just data[i] reads from ram.
-    CRC = 0xff & (CRC + pgm_read_byte(&data[i]));                       //CRC Calculation
+                                                                        //CRC Calculation
+
+                                                                        
     Serial.flush();                                                     //Flushing the serial write cache. better safe than sorry.
   }
-  Serial.write(lowByte(CRC));                      //Write the checksum of the block, using only the low byte of the signed int.
+  Serial.write(lowByte(CRC));                      //Write the CRC
+  Serial.write(highByte(CRC));
   Serial.flush();                                  //Probably the only flush needed. Makes the execution stop until write cache is empty.
 }
