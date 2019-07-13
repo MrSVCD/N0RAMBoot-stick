@@ -79,6 +79,8 @@ int numberofblocks = 0;
 int datablock = 0;
 int incomingByte = 0;
 int useCRC = 0;
+int sum = 0;
+unsigned int CRC = 0;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -132,35 +134,51 @@ void serialEvent() {
 
 void sendBlock(int xmodemblock) {
   digitalWrite(LED_BUILTIN, datablock & 1);        //blinks the led with every other block
-  int sum = 0;                                     //Resets the checksum
+  sum = 0;                                     //Resets the checksum
+
   Serial.write(1);                                 //Start Of Heading, the start of block byte
   Serial.write(xmodemblock + 1);                   //Block number, starting with 1
   Serial.write(255 - (xmodemblock + 1));           //Inverted block number
   Serial.flush();                                  //Flushing the serial write cache.
+
   for (int i = (xmodemblock * 128); i < (xmodemblock + 1) * 128; i++) { //Loop of data transmission and checksum calculation
     Serial.write(pgm_read_byte(&data[i]));                              //pgm_read_byte needs the pointer to read a byte from flash correctly. just data[i] reads from ram.
     sum = 0xff & (sum + pgm_read_byte(&data[i]));                       //checksum calculation and discarding of high byte of the signed int.
     Serial.flush();                                                     //Flushing the serial write cache. better safe than sorry.
   }
+
   Serial.write(lowByte(sum));                      //Write the checksum of the block, using only the low byte of the signed int.
   Serial.flush();                                  //Probably the only flush needed. Makes the execution stop until write cache is empty.
 }
 
 void sendBlockCRC(int xmodemblock) {
   digitalWrite(LED_BUILTIN, datablock & 1);        //blinks the led with every other block
-  unsigned int CRC = 0;                                     //Resets the checksum
+  CRC = 0;                                     //Resets the checksum
+
   Serial.write(1);                                 //Start Of Heading, the start of block byte
   Serial.write(xmodemblock + 1);                   //Block number, starting with 1
   Serial.write(255 - (xmodemblock + 1));           //Inverted block number
   Serial.flush();                                  //Flushing the serial write cache.
+
   for (int i = (xmodemblock * 128); i < (xmodemblock + 1) * 128; i++) { //Loop of data transmission and CRC calculation
     Serial.write(pgm_read_byte(&data[i]));                              //pgm_read_byte needs the pointer to read a byte from flash correctly. just data[i] reads from ram.
-                                                                        //CRC Calculation
 
-                                                                        
+    //CRC Calculation
+    for (int bitselect = 7; bitselect < 0; bitselect--) {
+      if (CRC & 0x8000) {
+        CRC <<= 1;
+        bitWrite(CRC,0,bitRead(pgm_read_byte(&data[i]),bitselect));
+        CRC ^= 0x1021;
+      }
+      else {
+        CRC <<= 1;
+        bitWrite(CRC,0,bitRead(pgm_read_byte(&data[i]),bitselect));
+      }
+    }
     Serial.flush();                                                     //Flushing the serial write cache. better safe than sorry.
   }
-  Serial.write(lowByte(CRC));                      //Write the CRC
-  Serial.write(highByte(CRC));
+
+  Serial.write(highByte(CRC));                      //Write the CRC
+  Serial.write(lowByte(CRC));
   Serial.flush();                                  //Probably the only flush needed. Makes the execution stop until write cache is empty.
 }
