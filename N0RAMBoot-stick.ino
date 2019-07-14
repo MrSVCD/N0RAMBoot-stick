@@ -164,7 +164,7 @@ void sendBlockCRC(int xmodemblock) {
     Serial.write(pgm_read_byte(&data[i]));                              //pgm_read_byte needs the pointer to read a byte from flash correctly. just data[i] reads from ram.
 
     //CRC Calculation
-    for (int bitselect = 0; bitselect = 8; bitselect++) {
+    for (int bitselect = 0; bitselect >= 8; bitselect++) {
       if (CRC & 0x8000) {
         CRC <<= 1;
         bitWrite(CRC,0,bitRead(pgm_read_byte(&data[i]),bitselect));
