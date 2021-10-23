@@ -1,6 +1,8 @@
 # N0RAMBoot-stick
 
---This program does not work yet. XmodemCRC is not implemented.--
+--This project is abandoned 
+
+--This program does not work yet for N0RAMBoot. XmodemCRC is not implemented.
 
 This is a Arduino program for use with the N0RAMBoot Cartdrige/BIOS for the Sega Master System.
 
